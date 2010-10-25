@@ -118,7 +118,7 @@ class waAdvancedDoctrineDebugPanel extends sfWebDebugPanel
       // Build summary of table uses
       foreach($counts as $table => $nbUse)
       {
-        $tableSummary[] = sprintf('<div style="float: left; margin-right: 10px; line-height: 15px;"><a href="#" onclick="jQuery(\'#sfWebDebugBarCancelLink\').show(); jQuery(\'#sfWebDebugAdvancedDatabaseLogs\').children(\'ol\').children(\'li\').hide(); jQuery(\'#sfWebDebugAdvancedDatabaseLogs\').children(\'ol\').children(\'li.info\').show(); jQuery(\'#sfWebDebugAdvancedDatabaseLogs\').children(\'ol\').children(\'li.table-'.$table.'\').show(); return false;" title="Only display queries on this table"><span style="color: blue;"> %s</span> (%s)</a></div>', $table, $nbUse);
+        $tableSummary[] = sprintf('<div style="float: left; margin-right: 10px; line-height: 15px;"><a href="#" onclick="jQuery(\'#sfWebDebugBarCancelLink\').show(); jQuery(\'#sfWebDebugAdvancedDatabaseLogs ol li\').hide(); jQuery(\'#sfWebDebugAdvancedDatabaseLogs ol li.info\').show(); jQuery(\'#sfWebDebugAdvancedDatabaseLogs ol li.table-'.$table.'\').show(); return false;" title="Only display queries on this table"><span style="color: blue;"> %s</span> (%s)</a></div>', $table, $nbUse);
       }
     }
 
@@ -158,7 +158,13 @@ class waAdvancedDoctrineDebugPanel extends sfWebDebugPanel
           $message .= '<li'.$liInfoStyle.' class="info" style=""><b>'.$mess['message'].' queries:</b></li>';
         }
       }
-      $message .= '<li'.$liStyle.' class="table-'.$table.' sfWebDebugDatabaseQuery">'.$log['log'].' <a href="#" style="color: blue;" onclick="jQuery(this).parent().children(\'span.select\').show(); jQuery(this).hide(); return false;">(View select content)</a></li>';
+      
+      $link = '';
+      if(strstr($log['log'],'SELECT') > 0)
+      {
+        $link = '<a href="#" style="color: blue;" onclick="jQuery(this).parent().children(\'span.select\').show(); jQuery(this).hide(); return false;">(View select content)</a>';
+      }
+      $message .= '<li'.$liStyle.' class="table-'.$table.' sfWebDebugDatabaseQuery">'.$log['log'].' '.$link.'</li>';
       $queries[] = $message;
     }
 
@@ -167,7 +173,7 @@ class waAdvancedDoctrineDebugPanel extends sfWebDebugPanel
         <div style="overflow: auto; margin-bottom: 10px;">'.$legend.'</div>
         <b>Table call summary (click on a table to filter queries)</b>
         <div style="overflow: auto; margin-bottom: 10px;">'.implode("\n", $tableSummary).'</div>
-        <b>SQL queries <span id="sfWebDebugBarCancelLink" style="display: none;">(<a href="#" style="color: blue" onclick="jQuery(\'#sfWebDebugAdvancedDatabaseLogs\').children(\'ol\').children(\'li\').show(); jQuery(this).parent().hide(); return false;">Cancel table filters</a>)</a></span></b>
+        <b>SQL queries <span id="sfWebDebugBarCancelLink" style="display: none;">(<a href="#" style="color: blue" onclick="jQuery(\'#sfWebDebugAdvancedDatabaseLogs ol li\').show(); jQuery(this).parent().hide(); return false;">Cancel table filters</a>)</a></span></b>
         <ol style="margin-left: 20px">'.implode("\n", $queries).'</ol>
       </div>
     ';
@@ -314,7 +320,7 @@ class waAdvancedDoctrineDebugPanel extends sfWebDebugPanel
    */
   protected static function extractTableFromSQL($sql)
   {
-    $exp = '|FROM `([^ \(]*)`|ms';
+    $exp = '/FROM `([^ \(]*)`/ms';
     $returnArray = array();
     preg_match_all($exp, $sql, $matches);
     
@@ -327,7 +333,21 @@ class waAdvancedDoctrineDebugPanel extends sfWebDebugPanel
     }
     else
     {
-      return '';
+      $exp = '/UPDATE `([^ \(]*)`/ms';
+      $returnUpdateArray = array();
+      preg_match_all($exp, $sql, $matches);
+
+      if(sizeof($matches) > 0 && sizeof($matches[0]) > 0)
+      {
+        foreach($matches[0] as $index => $value)
+        {
+          $returnArray = preg_replace($exp,'$1', $matches[0][$index]);
+        }
+      }
+       else
+      {
+        return '';
+      }
     }
     
     return $returnArray;
